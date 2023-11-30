@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astro Pi Display tool</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    td {
+      width: 30px;
+      height: 30px;
+      border: 1px solid #000;
+      cursor: pointer;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .color-palette {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    #colorWheel {
+      width: 200px;
+      height: 200px;
+      border: 1px solid #000;
+      border-radius: 50%;
+      margin-bottom: 20px;
+    }
+
+    #colorBar {
+      display: flex;
+      width: 200px;
+      border: 1px solid #000;
+      margin-bottom: 20px;
+    }
+
+    .color-bar-color {
+      flex-grow: 1;
+      height: 30px;
+      border: 1px solid #000;
+    }
+
+    #generateCodeButton {
+      margin-top: 20px;
+      margin-bottom: 20px;
+      padding: 10px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #colorDefinitions {
+      text-align: left;
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #imageDefinitions {
+      text-align: left;
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #image, #right, #left  {
+            width: 45%;
+            border: 0px solid #cccccc;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+  </style>
+</head>
+<body>
+
+<div id="right">
+  <h3>Definice barev:</h3>
+  <pre id="colorDefinitions"></pre>
+</div>
+
+<div id="left">
+  <center>
+	<h3>Varování: Aplikace je ve vývoji!</h3>
+	<a href="https://coderdojoub.eu.org">Zpět</a>
+	<br>
+  <table>
+    <tbody id="grid"></tbody>
+  </table></center>
+  <div class="color-palette">
+    <canvas id="colorWheel" width="200" height="200"></canvas>
+    <div id="colorBar"></div>
+    <button id="generateCodeButton">Vygenerovat kód</button>
+  </div>
+</div>
+
+<div id="image">
+  <h3>Definice obrázku</h3>
+  <pre id="imageDefinitions"></pre>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var grid = document.getElementById('grid');
+    var colorWheel = document.getElementById('colorWheel');
+    var colorBar = document.getElementById('colorBar');
+    var generateCodeButton = document.getElementById('generateCodeButton');
+    var colorDefinitions = document.getElementById('colorDefinitions');
+    var imageDefinitions = document.getElementById('imageDefinitions');
+    var selectedColor = null;
+
+    // Funkce pro přidání řádku do tabulky
+    function addRow() {
+      var row = grid.insertRow();
+      var letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH',
+        'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AV', 'AW', 'AX',
+        'AY', 'AZ', 'BA', 'BB', 'BC', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BK', 'BL', 'BM'];
+
+      for (var j = 0; j < 8; j++) {
+        var cell = row.insertCell();
+        cell.textContent = letters[(row.rowIndex * 8) + j];
+
+        cell.addEventListener('mousedown', function(event) {
+          if (event.button === 0) {
+            this.style.backgroundColor = selectedColor;
+          } else if (event.button === 2) {
+            // Zamezení výchozího chování pro pravé tlačítko
+            event.preventDefault();
+            this.style.backgroundColor = '';
+          }
+        });
+        // Event listener pro kontextové menu na buňce
+        cell.addEventListener('contextmenu', function(event) {
+          event.preventDefault();
+        });
+      }
+    }
+
+    // Přidání řádků do tabulky
+    for (var i = 0; i < 8; i++) {
+      addRow();
+    }
+
+    var ctx = colorWheel.getContext('2d');
+    var centerX = colorWheel.width / 2;
+    var centerY = colorWheel.height / 2;
+    var radius = colorWheel.width / 2;
+
+    // Vykreslení RGB kruhu
+    for (var angle = 0; angle <= 360; angle += 1) {
+      var startAngle = (angle - 1) * Math.PI / 180;
+      var endAngle = angle * Math.PI / 180;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.closePath();
+
+      var gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+      gradient.addColorStop(0, 'white');
+      gradient.addColorStop(1, 'hsl(' + angle + ', 100%, 50%)');
+
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+
+    // Přidání barvy do Color Bar
+    function addColorToBar(color) {
+      var colorElement = document.createElement('div');
+      colorElement.className = 'color-bar-color';
+      colorElement.style.backgroundColor = color;
+      colorBar.appendChild(colorElement);
+    }
+
+    // Přidání základních barev do Color Bar v daném pořadí
+    var basicColors = ['#000000', '#ffffff', '#ff0000', '#008000', '#ffff00', '#0000ff', '#a52a2a', '#808080', '#ffa500', '#ff69b4', '#800080'];
+
+    for (var i = 0; i < basicColors.length; i++) {
+      addColorToBar(basicColors[i]);
+    }
+
+    // Přidání event listeneru pro získání barvy z Color Bar
+    colorBar.addEventListener('click', function(event) {
+      selectedColor = getComputedStyle(event.target).backgroundColor;
+      console.log('Vybraná barva: ' + selectedColor);
+    });
+
+    // Přidání event listeneru pro získání barvy z RGB kruhu
+    colorWheel.addEventListener('click', function(event) {
+      var x = event.offsetX;
+      var y = event.offsetY;
+
+      var imageData = ctx.getImageData(x, y, 1, 1);
+      selectedColor = 'rgb(' + imageData.data[0] + ',' + imageData.data[1] + ',' + imageData.data[2] + ')';
+      console.log('Vybraná barva: ' + selectedColor);
+    });
+
+    // Přidání event listeneru pro tlačítko "Vygenerovat kód"
+    generateCodeButton.addEventListener('click', function() {
+      generateColorCode();
+    });
+
+    // Funkce pro vygenerování kódu
+    function generateColorCode() {
+      var rows = grid.getElementsByTagName('tr');
+      var letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH',
+        'AI', 'AJ', 'AK', 'AL', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AV', 'AW', 'AX',
+        'AY', 'AZ', 'BA', 'BB', 'BC', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BK', 'BL', 'BM'];
+
+      var colorMap = {};
+      var definitions = '';
+
+      for (var i = 0; i < rows.length; i++) {
+        var cells = rows[i].getElementsByTagName('td');
+        for (var j = 0; j < cells.length; j++) {
+          var cell = cells[j];
+          var cellColor = getComputedStyle(cell).backgroundColor;
+          if (cellColor !== 'rgba(0, 0, 0, 0)') {
+            if (!colorMap[cellColor]) {
+              colorMap[cellColor] = letters[i * 8 + j];
+            }
+          }
+        }
+      }
+
+      for (var color in colorMap) {
+        if (colorMap.hasOwnProperty(color)) {
+          definitions += colorMap[color] + '=' + getRGBValues(color) + '\n';
+        }
+      }
+
+      colorDefinitions.textContent = definitions;
+    }
+
+    // Funkce pro získání hodnot RGB z barvy ve formátu 'rgb(r, g, b)'
+    function getRGBValues(color) {
+      var values = color.match(/\d+/g);
+      return '(' + values[0] + ', ' + values[1] + ', ' + values[2] + ')';
+    }
+    
+    
+  });
+</script>
+
+</body>
+</html>
